@@ -5,3 +5,6 @@ numpy
 flask-cors
 sqlalchemy
 datetime
+python-dotenv
+flask-security
+argon2_cffi

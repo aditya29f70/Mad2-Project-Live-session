@@ -1,5 +1,6 @@
-from .extensions import db 
+from extensions import db 
 from datetime import datetime, timezone
+from flask_security.core import RoleMixin, UserMixin
 
 
 class BaseModel(db.Model):
@@ -10,25 +11,51 @@ class BaseModel(db.Model):
   updated_at= db.Column(db.DateTime(timezone=True), default= lambda:datetime.now(timezone.utc), onupdate= lambda:datetime.now(timezone.utc))
 # in DateTime why timezone bz flask sql alchemy has to recogize that this DataTime is time zone aware
 
-class User(BaseModel):
+class User(BaseModel, UserMixin):
   __tablename__= "users"
   username= db.Column(db.String(20), unique=True, nullable=False)
-  role= db.Column(db.String(15), nullable=False)
   email= db.Column(db.String, unique=True)
   password= db.Column(db.String, nullable=False, unique=True)
+  fs_uniquifier= db.Column(db.String, unique= True, nullable= False) # this is auto added by flask security
+  active= db.Column(db.Boolean, default= True) # if active=False, then the user will not be able to login
 
+  roles= db.relationship('Role', backref= 'bearers', secondary='user_roles') # type: ignore
   requests= db.relationship("Request", back_populates='user', cascade="all, delete-orphan")
   sales= db.relationship('Sale', back_populates='user', cascade='all, delete-orphan')
 
+class Role(BaseModel, RoleMixin):
+  # when ever we use flask security ;; we use RoleMixin so flask security will know which is role mode and which is user model
+  # and internally it is used that in order to create all that authentication, autherization
+  name= db.Column(db.String, unique=True, nullable= False) ## this will for identify admin, manager, customer
+  description= db.Column(db.String, nullable=False)
+
+
+class UserRoles(BaseModel): 
+  # it a many-to-many relationship so this table is saying which user has which roles # in this setup user can have multiple roles
+  user_id= db.Column(db.Integer, db.ForeignKey("users.id", ondelete='CASCADE'))
+  role_id= db.Column(db.Integer, db.ForeignKey("role.id", ondelete='CASCADE'))
+
+
+class Manager(BaseModel):
+  salary= db.Column(db.Integer)
+  address= db.Column(db.String)
+  department= db.Column(db.String)
+
+  user_id= db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'))
+
+class Customer(BaseModel):
+  loyalty_points= db.Column(db.Integer)
+
+  user_id= db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'))
 
 class Request(BaseModel):
   """manager request to modify / update things and then it will be shown to admin"""
   data= db.Column(db.JSON())
   status= db.Column(db.Enum('Approved', 'Created', 'Rejected'))
   Type = db.Column(db.String)
-  user_id= db.Column(db.Interger, db.ForeignKey('users.id',ondelete='CASCADE' ), nullable=False)
+  user_id= db.Column(db.Integer, db.ForeignKey('users.id',ondelete='CASCADE' ), nullable=False)
 
-  user= db.relationship('User', back_populate="requests")
+  user= db.relationship('User', back_populates="requests")
 
 class Section(BaseModel):
   __tablename__='section'
@@ -47,7 +74,7 @@ class Product(BaseModel):
   name = db.Column(db.String, nullable=False)
   price = db.Column(db.Numeric(10, 2), nullable=False) ## we don't use float instead use numeric bz it is more refine things;; in float we can't deside till how many decimal point value we want ; but in numeric we can
   stock = db.Column(db.Numeric(10,2))
-  expiry = db.Column(db.DataTime(timezone=True))
+  expiry = db.Column(db.DateTime(timezone=True))
   unit_of_sale = db.Column(db.Enum('Kg','Liter','Unit'))  # means -> kg, Liter, item(biskit) ;; to enforce this we can use "db.Enum" (Literal things in typing)
   mfd = db.Column(db.DateTime(timezone=True))
 
