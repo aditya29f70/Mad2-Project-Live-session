@@ -7,6 +7,10 @@ from dotenv import load_dotenv
 from flask_security.datastore import  SQLAlchemyUserDatastore
 ## have to give a datastore when we init flask security in our app
 
+from resources import auth_bp
+# we don't need to do resouces.auth_resouce bz we have putted auth_bp in __init__.py
+
+
 load_dotenv()
 
 def create_app():
@@ -23,6 +27,10 @@ def create_app():
 
   app.datastore= datastore # pyright: ignore[reportAttributeAccessIssue]
   # it will help us to create data in there connected table very easy
+
+
+  # blue-print
+  app.register_blueprint(auth_bp)
 
   db.init_app(app)
   app.app_context().push()
